@@ -40,10 +40,54 @@ pid32	vcreate(
 		return SYSERR;
 	}
 
-  // Lab3 TODO. set up page directory, allocate bs etc.
-
 	prcount++;
 	prptr = &proctab[pid];
+  
+  // Lab3 TODO. set up page directory, allocate bs etc.
+#if EJ_LAB3
+    // set PDBR
+    uint32 free_frame_num = get_free_frame_number( pid , 0 , PAGE_DIR ) ; 
+    prptr -> PDBR = Cal_Addr( free_frame_num ) ;
+    pd_t* cur_pd = (pd_t*)( Cal_Addr( free_frame_num ) ) ;
+    // set Global, Device page directories
+    set_pd_t( cur_pd++    , 1 + 1024 ) ;
+    set_pd_t( cur_pd++    , 2 + 1024 ) ;
+    set_pd_t( cur_pd++    , 3 + 1024 ) ;
+    set_pd_t( cur_pd      , 4 + 1024 ) ; 
+    pd_t* device_pd_t = (pd_t*)( Cal_Addr(free_frame_num) + 4 * 576 ) ;
+    set_pd_t( device_pd_t ,  5 + 1024 ) ;
+    // create Virtual Heap 
+    
+	struct vmemblk *vmemptr;	/* Ptr to memory block		*/
+    vmemptr = &( prptr->vmemlist ) ; 
+    vmemptr->vaddr = (uint32)0x01000000 ; 
+    vmemptr->vmlength = ( PAGE_SIZE * hsize ) ; 
+    
+    prptr->vminheap.vaddr = (uint32)0x01000000 ;
+    prptr->vminheap.vnext = NULL ;
+    prptr->vminheap.vmlength = (PAGE_SIZE * hsize ) ;
+    
+    prptr->vmaxheap.vaddr = (uint32)0x01000000 + (PAGE_SIZE * hsize ) ;
+    prptr->vmaxheap.vnext = NULL ;
+    prptr->vmaxheap.vmlength = 0 ;
+    
+    vmemptr->vnext = &prptr->vminheap;
+
+    // Map BS 
+    uint32 remain_hsize = hsize ;
+    uint32 t = 0 ; 
+    while( remain_hsize > MAX_PAGES_PER_BS ){
+        if( !bs_mapping( pid , MAX_PAGES_PER_BS , t * MAX_PAGES_PER_BS  )) 
+            kprintf("bs_mapping error \n") ; 
+        remain_hsize -= MAX_PAGES_PER_BS ; 
+        t++ ; 
+    }
+    if( !bs_mapping( pid , remain_hsize , t * MAX_PAGES_PER_BS )) 
+        kprintf("bs_mapping error \n") ; 
+
+
+#endif
+  // END 
 
 	/* Initialize process table entry for new process */
 	prptr->prstate = PR_SUSP;	/* Initial state is suspended	*/

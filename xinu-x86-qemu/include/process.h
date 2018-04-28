@@ -63,6 +63,14 @@ struct procent {		/* Entry in the process table		*/
 	int16	prdesc[NDESC];	/* Device descriptors for process	*/
 
   /* Lab3 TODO: add more structures as required for vheap etc. */
+    //EJ_TODO
+#if EJ_LAB3 
+    uint64 PDBR ;  
+    //struct	memblk	vmemlist;	/* Head of free memory list	*/
+    struct	vmemblk	vmemlist;	/* Head of free memory list	*/
+    struct	vmemblk	vminheap;	/* Head of free memory list	*/
+    struct	vmemblk	vmaxheap;	/* Head of free memory list	*/
+#endif
 };
 
 /* Marker for the top of a process stack (used to help detect overflow)	*/

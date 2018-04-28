@@ -32,6 +32,39 @@ syscall	kill(
 	}
 
   // Lab3 TODO. Free frames as a process gets killed.
+  // EJ
+    for( i = 0 ; i < NFRAMES ; i++ ){
+        if(ivptab[i].pid == pid){
+            //reset_ivent()
+            if( ivptab[i].valid == PAGE ){
+                uint32 bstore , p_offset ; 
+                get_store_offset( pid , ( ivptab[i].vpage_num << 12 ) , &bstore , &p_offset ) ; 
+                write_bs( (char *)( ( i + 1024 ) * PAGE_SIZE ) , bstore , p_offset ); 
+            }
+            
+            
+            ivptab[i].valid        = NULL_PAGE ; 
+            ivptab[i].frame_number = i ; 
+            ivptab[i].pid          = 0 ;  
+            ivptab[i].vpage_num    = 0 ; 
+            ivptab[i].ref_count    = 0 ; 
+            if( ivptab[i].fifo_prev )
+                ivptab[i].fifo_prev->fifo_next = ivptab[i].fifo_next ; 
+            ivptab[i].fifo_next    = NULL ; 
+            ivptab[i].fifo_prev    = NULL ; 
+        } 
+    }
+
+
+    for( i = MIN_ID ; i <= MAX_ID ; i++ ){
+        if(bsmap[i].pid == pid){
+            deallocate_bs(i) ; 
+            bsmap[i].ifMap       = 0 ;    
+            bsmap[i].pid         = 0 ;    
+            bsmap[i].num_pages   = 0 ;    
+            bsmap[i].start_vpn   = 0 ;    
+        }
+    }
 
 	freestk(prptr->prstkbase, prptr->prstklen);
 

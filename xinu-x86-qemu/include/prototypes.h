@@ -739,6 +739,21 @@ extern int allocateframe();
 extern pd_t *allocatepd();
 extern pt_t *allocatept();
 
+//EJ TODO
+extern void set_pd_t(pd_t* pd , unsigned int frame_number);
+extern void set_pt_t(pt_t* pt , unsigned int frame_number);
+extern void write_CR( unsigned long cr , int idx);
+extern unsigned long read_CR(unsigned long cr , int idx) ;
+extern void pagefault(void); 
+extern uint32 get_free_frame_number(uint32 pid, uint32 vpn , uint32 purpose) ; 
+extern bool8 bs_mapping() ; 
+extern void myPageFault();
+extern void create_pagetable(pd_t* pd);
+
+void reset_ivtentry();
+void set_ivtentry_pd_pt( uint32 i , uint32 pid, uint32 type);
+void reset_BSmapTab();
+void get_store_offset( uint32 pid, uint32 vaddr, uint32* store , uint32* offset );
 /* NETWORK BYTE ORDER CONVERSION NOT NEEDED ON A BIG-ENDIAN COMPUTER */
 #define	htons(x)   ( ( 0xff & ((x)>>8) ) | ( (0xff & (x)) << 8 ) )
 #define	htonl(x)   (  (((x)>>24) & 0x000000ff) | (((x)>> 8) & 0x0000ff00) | \

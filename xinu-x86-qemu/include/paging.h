@@ -42,7 +42,7 @@ typedef struct {
 #define FRAME0		1024	/* zero-th frame		*/
 
 #ifndef NFRAMES
-#define NFRAMES		3072	/* number of frames		*/
+#define NFRAMES		20	/* number of frames		*/
 #endif
 
 #define MAP_SHARED 1
@@ -54,6 +54,41 @@ typedef struct {
 #define MAX_ID		7		/* You get 8 mappings, 0 - 7 */
 #define MIN_ID		0
 
-extern int32	currpolicy;
+extern int32	currpolicy ;
+extern uint64	check_CR3  ;
+
+#define    NULL_PAGE  0
+#define    PAGE_DIR   1
+#define    PAGE_TAB   2
+#define    PAGE       3
+
+struct ivent{
+    uint32      valid     ;
+    uint32      frame_number ; 
+    uint32      pid       ;  
+    uint32      vpage_num ; 
+    //
+    uint32      ref_count ; 
+    struct ivent*      fifo_next ; 
+    struct ivent*      fifo_prev ; 
+};
+
+extern struct ivent*   fifo_head  ;
+extern struct ivent*   fifo_tail  ;
+
+struct bsent{
+    uint32 ifMap       ;    
+    uint32 pid         ;    
+    uint32 num_pages   ;    
+    uint32 start_vpn   ;    
+};
+
+struct vmemblk{
+    struct   vmemblk* vnext ; 
+    uint32   vaddr ; 
+    uint32   vmlength ; 
+};
+extern struct ivent ivptab[] ; 
+extern struct bsent bsmap[] ; 
 
 #endif // __PAGING_H_

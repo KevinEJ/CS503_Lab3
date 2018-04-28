@@ -45,6 +45,11 @@ void	resched(void)		/* Assumes interrupts are disabled	*/
 
   // Lab3. TODO: change the page directories as a process is ctx out
 
+#if EJ_LAB3
+    // PDBR = ptnew -> PDBR ; 
+    write_CR( ptnew->PDBR , 3 ) ;
+    check_CR3 = ptnew->PDBR ; 
+#endif
 	ctxsw(&ptold->prstkptr, &ptnew->prstkptr);
 
 	/* Old process returns here when resumed */

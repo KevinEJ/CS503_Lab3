@@ -74,4 +74,5 @@ syscall	kputc(byte);
 syscall	kgetc(void);
 
 #define EJ_LAB3 1 
+#define EJ_debug 1 
 

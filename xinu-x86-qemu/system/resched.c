@@ -10,7 +10,7 @@ struct	defer	Defer;
  */
 void	resched(void)		/* Assumes interrupts are disabled	*/
 {
-	//kprintf("resched\n");
+	//kprintf("resched currpid = %d \n" , currpid );
 	struct procent *ptold;	/* Ptr to table entry for old process	*/
 	struct procent *ptnew;	/* Ptr to table entry for new process	*/
 
@@ -27,6 +27,7 @@ void	resched(void)		/* Assumes interrupts are disabled	*/
 
 	if (ptold->prstate == PR_CURR) {  /* Process remains eligible */
 		if (ptold->prprio > firstkey(readylist)) {
+	        //kprintf("resched no change = %d \n" , currpid );
 			return;
 		}
 
@@ -47,6 +48,8 @@ void	resched(void)		/* Assumes interrupts are disabled	*/
 
 #if EJ_LAB3
     // PDBR = ptnew -> PDBR ; 
+    //kprintf("resched write cr3 - pid = %d \n" , currpid) ; 
+    //dump32( ptnew->PDBR ) ; 
     write_CR( ptnew->PDBR , 3 ) ;
     check_CR3 = ptnew->PDBR ; 
 #endif

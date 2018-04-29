@@ -35,7 +35,7 @@ static void do_policy_test(void) {
   for (uint32 i = 0; i<npages; i++) {
     uint32 *p = (uint32*)(mem + (i * PAGESIZE));
 
-    // kprintf("Write Iteration [%3d] at 0x%08x\n", i, p);
+    kprintf("Write Iteration [%3d] at 0x%08x\n", i, p);
     for (uint32 j=0; j<PAGESIZE; j=j+4) {
       uint32 v = get_test_value(p);
       *p++ = v;

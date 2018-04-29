@@ -29,6 +29,8 @@ pid32	vcreate(
 	uint32		*a;		/* Points to list of args	*/
 	uint32		*saddr;		/* Stack address		*/
 
+    kprintf(" Vcreating %s \n" , name ) ; 
+
 	mask = disable();
 	if (ssize < MINSTK)
 		ssize = MINSTK;
@@ -45,16 +47,23 @@ pid32	vcreate(
   
   // Lab3 TODO. set up page directory, allocate bs etc.
 #if EJ_LAB3
+    kprintf(" Vcreating %s Lab 3 start \n" , name ) ; 
     // set PDBR
     uint32 free_frame_num = get_free_frame_number( pid , 0 , PAGE_DIR ) ; 
     prptr -> PDBR = Cal_Addr( free_frame_num ) ;
     pd_t* cur_pd = (pd_t*)( Cal_Addr( free_frame_num ) ) ;
     // set Global, Device page directories
-    set_pd_t( cur_pd++    , 1 + 1024 ) ;
-    set_pd_t( cur_pd++    , 2 + 1024 ) ;
-    set_pd_t( cur_pd++    , 3 + 1024 ) ;
-    set_pd_t( cur_pd      , 4 + 1024 ) ; 
-    pd_t* device_pd_t = (pd_t*)( Cal_Addr(free_frame_num) + 4 * 576 ) ;
+    set_pd_t( cur_pd    , 1 + 1024 ) ;
+    cur_pd ++ ; 
+    set_pd_t( cur_pd    , 2 + 1024 ) ;
+    cur_pd ++ ; 
+    set_pd_t( cur_pd    , 3 + 1024 ) ;
+    cur_pd ++ ; 
+    set_pd_t( cur_pd    , 4 + 1024 ) ; 
+    
+    pd_t* device_pd_t = (pd_t*)Cal_Addr( free_frame_num ) ;
+    for( int i = 0 ; i < 576 ; i ++ )
+        device_pd_t++;
     set_pd_t( device_pd_t ,  5 + 1024 ) ;
     // create Virtual Heap 
     
@@ -86,6 +95,7 @@ pid32	vcreate(
         kprintf("bs_mapping error \n") ; 
 
 
+    kprintf(" Vcreating %s Lab 3 end \n" , name ) ; 
 #endif
   // END 
 
@@ -146,6 +156,7 @@ pid32	vcreate(
 	*pushsp = (unsigned long) (prptr->prstkptr = (char *)saddr);
 	
 	restore(mask);
+	kprintf("Create pid %d finished  \n" , pid );
 	return pid;
 }
 

@@ -8,6 +8,6 @@
  */
 uint32 get_faults() {
 	/* LAB3 TODO */
-
-  return 0;	
+    
+    return num_fault;	
 }

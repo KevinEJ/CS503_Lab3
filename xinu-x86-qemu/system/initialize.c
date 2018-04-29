@@ -19,39 +19,46 @@ extern	void meminit(void);	/* Initializes the free memory list	*/
 /* Lab3. initializes data structures and necessary set ups for paging */
 static	void initialize_paging();
 
-unsigned long Cal_Addr( unsigned long frame_number){
-    return ( frame_number + 1024 ) * 4096 ; 
+//unsigned long Cal_Addr( unsigned long frame_number){
+uint32 Cal_Addr( uint64 frame_number){
+    return ( frame_number + 1024 ) * PAGE_SIZE ; 
 }
 
 void set_pd_t(pd_t* pd , unsigned int page_number){
-        pd -> pd_pres   = 1  ;       //     /* page table present?      
-        pd -> pd_write  = 1  ;       //     /* page is writable?        
-        pd -> pd_user   = 0  ;       //     /* is use level protection? 
-        pd -> pd_pwt    = 0  ;       //     /* write through cachine for pt? 
-        pd -> pd_pcd    = 0  ;       //     /* cache disable for this pt?   
-        pd -> pd_acc    = 0  ;       //     /* page table was accessed? 
-        pd -> pd_mbz    = 0  ;       // /* must be zero         
-        pd -> pd_fmb    = 0  ;       // /* four MB pages?       
-        pd -> pd_global = 0  ;               // /* global (ignored)     
-        pd -> pd_avail  = 0  ;               // /* for programmer's use     
-        pd -> pd_base   = page_number  ; //     /* location of page table?  
+        pd_t temp ; 
+        temp.pd_pres   = 1  ;       //     /* page table present?      
+        temp.pd_write  = 1  ;       //     /* page is writable?        
+        temp.pd_user   = 0  ;       //     /* is use level protection? 
+        temp.pd_pwt    = 0  ;       //     /* write through cachine for pt? 
+        temp.pd_pcd    = 0  ;       //     /* cache disable for this pt?   
+        temp.pd_acc    = 0  ;       //     /* page table was accessed? 
+        temp.pd_mbz    = 0  ;       // /* must be zero         
+        temp.pd_fmb    = 0  ;       // /* four MB pages?       
+        temp.pd_global = 0  ;               // /* global (ignored)     
+        temp.pd_avail  = 0  ;               // /* for programmer's use     
+        temp.pd_base   = page_number  ; //     /* location of page table?  
+        *pd = temp ; 
 }
 void set_pt_t(pt_t* pt , unsigned int page_number){
-        pt -> pt_pres    = 1  ;       //     /* page table present?      
-        pt -> pt_write   = 1  ;       //     /* page is writable?        
-        pt -> pt_user    = 0  ;       //     /* is use level protection? 
-        pt -> pt_pwt     = 0  ;       //     /* write through cachine for pt? 
-        pt -> pt_pcd     = 0  ;       //     /* cache disable for this pt?   
-        pt -> pt_acc     = 0  ;       //     /* page table was accessed? 
-        pt -> pt_dirty   = 0  ;       // /* must be zero         
-        pt -> pt_mbz     = 0  ;       // /* four MB pages?       
-        pt -> pt_global  = 0  ;               // /* global (ignored)     
-        pt -> pt_avail   = 0  ;               // /* for programmer's use     
-        pt -> pt_base    = page_number  ; //     /* location of page table?  
+        pt_t temp ; 
+        temp.pt_pres    = 1  ;       //     /* page table present?      
+        temp.pt_write   = 1  ;       //     /* page is writable?        
+        temp.pt_user    = 0  ;       //     /* is use level protection? 
+        temp.pt_pwt     = 0  ;       //     /* write through cachine for pt? 
+        temp.pt_pcd     = 0  ;       //     /* cache disable for this pt?   
+        temp.pt_acc     = 0  ;       //     /* page table was accessed? 
+        temp.pt_dirty   = 0  ;       // /* must be zero         
+        temp.pt_mbz     = 0  ;       // /* four MB pages?       
+        temp.pt_global  = 0  ;               // /* global (ignored)     
+        temp.pt_avail   = 0  ;               // /* for programmer's use     
+        temp.pt_base    = page_number  ; //     /* location of page table?  
+        *pt = temp ; 
 }
 
-unsigned long tmp ;
-void write_CR( unsigned long cr , int idx){
+//unsigned long tmp ;
+uint64 tmp ;
+//void write_CR( unsigned long cr , int idx){
+void write_CR( uint64 cr , int idx){
     
 	intmask		mask;		/* Saved interrupt mask		*/
 	mask = disable();
@@ -68,6 +75,7 @@ void write_CR( unsigned long cr , int idx){
         asm("movl %eax, %cr4");
     else{
         kprintf("You should not touch this reg \n") ; 
+        restore(mask);
         return ; 
     }
     asm("popl %eax");
@@ -76,11 +84,13 @@ void write_CR( unsigned long cr , int idx){
   return ;
 } 
 
-unsigned long read_CR(unsigned long cr , int idx) {
+//unsigned long read_CR(unsigned long cr , int idx) {
+uint64 read_CR(uint64 cr , int idx) {
   
     intmask		mask;		/* Saved interrupt mask		*/
     mask = disable();
-    unsigned long local_tmp;
+    //unsigned long local_tmp;
+    uint64 local_tmp;
 
 
     asm("pushl %eax");
@@ -94,6 +104,7 @@ unsigned long read_CR(unsigned long cr , int idx) {
         asm("movl %cr4, %eax");
     else{
         kprintf("You should not touch this reg \n") ; 
+        restore(mask);
         return -1 ;
     }
     asm("movl %eax, tmp");
@@ -104,6 +115,24 @@ unsigned long read_CR(unsigned long cr , int idx) {
 
     restore(mask);
     return local_tmp ;
+}
+
+void dump32(uint64 n) {
+    intmask		mask;		/* Saved interrupt mask		*/
+    mask = disable();
+    int32 i;
+
+    for(i = 31; i>=0; i--) {
+        kprintf("%02d ",i);
+    }
+
+    kprintf("\n");
+
+    for(i=31;i>=0;i--)
+        kprintf("%d  ", (n&(1<<i)) >> i);
+
+    kprintf("\n");
+    restore(mask);
 }
 
 
@@ -120,9 +149,11 @@ frame_md_t frame_md;
 struct ivent ivptab[NFRAMES] ; 
 struct bsent bsmap[8] ; 
 uint64 check_CR3 ; 
+uint32 num_fault ; 
 
 struct ivent*   fifo_head  ;
 struct ivent*   fifo_tail  ;
+struct ivent    fifo_head_dummy_entry  ;
 
 /* Active system status */
 
@@ -198,15 +229,19 @@ void	nulluser()
 
 	/* Create a process to execute function main() */
 
-	resume (
-	   vcreate((void *)main, INITSTK, 0 , INITPRIO, "Main process", 0,
-           NULL));
+    pid32 main_pid = vcreate((void *)main, INITSTK, 0 , INITPRIO, "Main process", 0, NULL) ; 
+	if( main_pid == SYSERR) {
+		kprintf( "Cannot create main process\n" );
+	}
+	resume ( main_pid ) ; 
+	   //vcreate((void *)main, INITSTK, 0 , INITPRIO, "Main process", 0,
+       //    NULL));
 	   //create((void *)main, INITSTK, INITPRIO, "Main process", 0,
        //    NULL));
 
 	/* Become the Null process (i.e., guarantee that the CPU has	*/
 	/*  something to run when no other process is ready to execute)	*/
-
+    
 	while (TRUE) {
 		;		/* Do nothing */
 	}
@@ -308,56 +343,123 @@ static void initialize_paging()
 {
 #if EJ_LAB3
     /* LAB3 TODO */
+    num_fault = 0  ; 
+    fifo_head_dummy_entry.fifo_next = NULL ; 
+    fifo_head_dummy_entry.fifo_prev = NULL ; 
+    *fifo_head = fifo_head_dummy_entry ; 
+    *fifo_tail = fifo_head_dummy_entry ; 
     //1. set_IVTab() ; 
+    #if EJ_debug
+    kprintf("reste_ivtentry \n") ; 
+    #endif
     reset_ivtentry() ;
     // null_pd , global_pt , device_pt 
+    #if EJ_debug
+    kprintf("set ivtentry pt,pd \n") ; 
+    #endif
     set_ivtentry_pd_pt( 0 , 0 , PAGE_DIR ) ;
     for( uint32 i = 1 ; i < 6 ; i++){
         set_ivtentry_pd_pt( i , 0 , PAGE_TAB ) ;
     }
     //2. set_BSmapTab() ; 
+    #if EJ_debug
+    kprintf("set BS map\n") ; 
+    #endif
     reset_BSmapTab() ; 
 
     //3. set Null process's paging members.
+    #if EJ_debug
+    kprintf("set Null process's page members\n") ; 
+    #endif
 	struct	procent	*nullptr;		/* Ptr to process table entry	*/
 	nullptr = &proctab[NULLPROC];
     nullptr -> PDBR = Cal_Addr( 0 ) ; 
     //4. assign Null process's page directories to global page table
     pd_t* null_pd = (pd_t*)Cal_Addr( 0 ) ;
-    set_pd_t( null_pd++ , 1 + 1024 ) ;
-    set_pd_t( null_pd++ , 2 + 1024 ) ;
-    set_pd_t( null_pd++ , 3 + 1024 ) ;
-    set_pd_t( null_pd   , 4 + 1024 ) ; 
+    set_pd_t( null_pd , 1 + 1024 ) ;
+    null_pd ++ ; 
+    set_pd_t( null_pd , 2 + 1024 ) ;
+    null_pd ++ ; 
+    set_pd_t( null_pd , 3 + 1024 ) ;
+    null_pd ++ ; 
+    set_pd_t( null_pd , 4 + 1024 ) ; 
     // 5. set gloabl page tables
+    #if EJ_debug
+    kprintf("set global page tables\n") ; 
+    #endif
+    hook_ptable_create(1+1024); 
+    hook_ptable_create(2+1024); 
+    hook_ptable_create(3+1024); 
+    hook_ptable_create(4+1024); 
     pt_t* g_pt_t = (pt_t*)Cal_Addr( 1 ) ; 
-    for( int p = 0 ; p < 4 ; p ++)
-        for( int i = 0 ; i < 1024 ; i ++ )
-            set_pt_t( g_pt_t++ , p * 1024 + i ) ; 
+    for( int p = 0 ; p < 4 ; p ++){
+        for( int i = 0 ; i < 1024 ; i ++ ){
+            set_pt_t( g_pt_t , p * 1024 + i ) ;
+            g_pt_t++ ; 
+        }
+    }
     // 6. set device memory pd and pt
-    pd_t* device_pd_t = (pd_t*)( null_pd + 4 * 576 ) ;
+    #if EJ_debug
+    kprintf("set device page tables\n") ; 
+    #endif
+    pd_t* device_pd_t = (pd_t*)Cal_Addr( 0 ) ;
+    for( int i = 0 ; i < 576 ; i ++ )
+        device_pd_t++;
     set_pd_t( device_pd_t ,  5 + 1024 ) ;
     
-    pt_t* device_pt_t = (pt_t*)Cal_Addr( 576 ) ; 
+    hook_ptable_create(5+1024); 
+    pt_t* device_pt_t = (pt_t*)Cal_Addr( 5 ) ; 
     for( int i = 0 ; i < 1024 ; i ++)
         set_pt_t( device_pt_t++ , 576*1024 + i ) ; 
     
     // 7. set CR3 / PDBR 
+    #if EJ_debug
+    kprintf("set CR3\n") ; 
+    #endif
     write_CR( nullptr -> PDBR , 3 ) ;
-    check_CR3 = nullptr -> PDBR ;  
+    //check_CR3 = nullptr -> PDBR ;  
+    uint64 ch_cr3 = 1 ; 
+    ch_cr3 = read_CR( ch_cr3 , 3 ) ;
+    dump32( ch_cr3 ) ; 
+    dump32( nullptr->PDBR ) ; 
     // 8. install ISR
+    #if EJ_debug
+    kprintf("set ISR\n") ; 
+    #endif
     set_evec( 14 , (uint32) pagefault ) ; 
 
     // 9.enable page table 
-    unsigned long cr0 = 0 ; 
-    cr0 = read_CR( cr0 , 0 ) ;
-    cr0 = cr0 | (1 << 31 ) | 1 ;
-    write_CR( cr0 , 0) ; 
-    unsigned long cr4 = 0 ;
+    #if EJ_debug
+    kprintf("set CR4\n") ; 
+    #endif
+    uint64 cr4 = 0 ;
     cr4 = read_CR( cr4 , 4  ) ;
     cr4 = cr4 & (~(1 << 5 ) )  ;
     write_CR( cr4 , 4) ;
+    dump32( cr4 ) ; 
+    
+    
+    kprintf("set CR0\n") ; 
+    uint64 cr0 = 1 ; 
+    cr0 = read_CR( cr0 , 0 ) ;
+    dump32( cr0 ) ; 
+    #if EJ_debug
+    kprintf("cr0 = \n" , (uint32)cr0 ) ; 
+    #endif
+    cr0 = cr0 | 0x80000001 ; //(1 << 31 ) | 1 ;
+    dump32( cr0 ) ; 
+    write_CR( cr0 , 0) ; 
+    #if EJ_debug
+    dump32( cr0 ) ; 
+    cr0 = read_CR( cr0 , 0 ) ;
+    kprintf("cr0 = \n" , (uint32)cr0 ) ; 
+    #endif
 #endif
     //
+    kprintf("Finish init page\n") ; 
+    #if EJ_debug
+    kprintf("Finish init page\n") ; 
+    #endif
 	return;
 }
 
@@ -378,6 +480,8 @@ int32	delay(int n)
 
 //EJ Util functions
 uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
+    kprintf(" Get free frame number for pid %d , vpn %d \n" , pid , vpn ) ; 
+    
     for( uint32 i = 0 ; i < NFRAMES ; i++){
         if( ivptab[i].valid == NULL_PAGE ){
             ivptab[i].valid = purpose ; 
@@ -390,13 +494,17 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
                 ivptab[i].fifo_prev = NULL            ; 
                 fifo_tail = &ivptab[i]         ;  
             }    
+            kprintf(" Get free frame number [%d] with no replacement " , i ) ; 
             return i ; 
         }
     }
     
-    uint32 ret = fifo_head->frame_number ; 
-    fifo_head  = fifo_head->fifo_prev ; 
-    fifo_head -> fifo_next = NULL ; 
+    
+    //kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
+    uint32 ret      = fifo_head->fifo_prev->frame_number      ; 
+    fifo_head->fifo_prev = fifo_head->fifo_prev->fifo_prev    ; 
+    fifo_head->fifo_prev->fifo_prev->fifo_next = fifo_head    ; 
+    kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
    
     uint32 r_pid = ivptab[ret].pid ; 
     uint32 r_vpn = ivptab[ret].vpage_num ;
@@ -416,7 +524,7 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     for ( int i = 0 ; i < r_q ; i++){
         r_pt ++ ; 
     }
-    
+
     if( r_pt->pt_dirty == 1 ){
         uint32 bstore , p_offset ; 
         get_store_offset( r_pid , r_vaddr , &bstore , &p_offset ) ; 
@@ -429,20 +537,24 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     
     ivptab[ r_pd->pd_base - 1024].ref_count -- ; 
     if ( ivptab[ r_pd->pd_base - 1024].ref_count == 0 ){
+        hook_ptable_delete( r_pd->pd_base ) ; 
         r_pd -> pd_pres = 0 ; 
         ivptab[r_pd->pd_base - 1024].valid = NULL_PAGE ; 
     }
     
+    pid32 old_pid     = ivptab[ret].pid ; 
+    pid32 old_pagenum = ivptab[ret].vpage_num ; 
     ivptab[ret].valid = purpose ; 
     ivptab[ret].pid = pid ;
     if( purpose == PAGE ){
         ivptab[ret].vpage_num = vpn ; 
     
-        fifo_tail   -> fifo_prev = &ivptab[ret] ; 
+        fifo_tail -> fifo_prev = &ivptab[ret] ; 
         ivptab[ret].fifo_next = fifo_tail ; 
         ivptab[ret].fifo_prev = NULL      ; 
         fifo_tail = &ivptab[ret]         ;  
-    }  
+    } 
+    hook_pswap_out( old_pid , old_pagenum , ret  );
     return ret ; 
 }
 
@@ -457,13 +569,20 @@ void myPageFault(){
     pd_t* curr_pd    ; 
     pt_t* curr_pt    ; 
 
+    kprintf("start Page fault handler\n") ; 
+    
     mask = disable();
+   
+    num_fault ++ ; 
 
     currPtr = &proctab[currpid] ; 
     pf_addr = read_CR( pf_addr , 2 ) ; // read faulted address ; 
     //check if a is valid 
     if( pf_addr < currPtr->vmemlist.vaddr || pf_addr >= currPtr->vmaxheap.vaddr ){
-        kprintf("faulted address is not valid \n") ; 
+        kprintf("faulted address is not valid Ox%x , pid = %d \n" , (uint32)pf_addr , currpid ) ; 
+        dump32(pf_addr); 
+        //kill(currpid) ;
+        return ; 
         // TODO kill the process ??? 
     }
     
@@ -490,11 +609,13 @@ void myPageFault(){
 
     restore(mask);
     //kprintf("entering page fault \n") ; 
+    hook_pfault( currpid , (void*)(uint32)pf_addr , v_pn , free_frame_num ) ; 
     return ;  
 }
 
 void create_pagetable(pd_t* pd){
     uint32 free_frame_num = get_free_frame_number( currpid , 0 , PAGE_TAB ) ;
+    hook_ptable_create(free_frame_num+1024) ;
     set_pd_t( pd , free_frame_num + 1024 ) ; 
     pt_t* pt = (pt_t*)Cal_Addr( free_frame_num ) ; 
     for( int i = 0 ; i < 1024 ; i ++){

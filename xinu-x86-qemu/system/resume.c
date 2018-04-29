@@ -13,8 +13,11 @@ pri16	resume(
 	intmask	mask;			/* Saved interrupt mask		*/
 	struct	procent *prptr;		/* Ptr to process' table entry	*/
 	pri16	prio;			/* Priority to return		*/
-
-	mask = disable();
+        
+	
+	kprintf("Resume pid %d starts \n" , pid );
+    
+    mask = disable();
 	if (isbadpid(pid)) {
 		restore(mask);
 		return (pri16)SYSERR;
@@ -27,5 +30,6 @@ pri16	resume(
 	prio = prptr->prprio;		/* Record priority to return	*/
 	ready(pid);
 	restore(mask);
+	kprintf("Resume pid %d - prio %d finished \n" , pid , prio );
 	return prio;
 }

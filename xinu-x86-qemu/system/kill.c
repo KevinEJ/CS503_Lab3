@@ -41,7 +41,9 @@ syscall	kill(
                 get_store_offset( pid , ( ivptab[i].vpage_num << 12 ) , &bstore , &p_offset ) ; 
                 write_bs( (char *)( ( i + 1024 ) * PAGE_SIZE ) , bstore , p_offset ); 
             }
-            
+            if( ivptab[i].valid == PAGE_TAB){
+                hook_ptable_delete(i+1024) ; 
+            } 
             
             ivptab[i].valid        = NULL_PAGE ; 
             ivptab[i].frame_number = i ; 

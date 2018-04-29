@@ -742,8 +742,11 @@ extern pt_t *allocatept();
 //EJ TODO
 extern void set_pd_t(pd_t* pd , unsigned int frame_number);
 extern void set_pt_t(pt_t* pt , unsigned int frame_number);
-extern void write_CR( unsigned long cr , int idx);
-extern unsigned long read_CR(unsigned long cr , int idx) ;
+//extern void write_CR( unsigned long cr , int idx);
+//extern unsigned long read_CR(unsigned long cr , int idx) ;
+extern void write_CR( uint64 cr , int idx);
+extern uint64 read_CR( uint64 cr , int idx) ;
+extern void dump32(uint64 n) ;
 extern void pagefault(void); 
 extern uint32 get_free_frame_number(uint32 pid, uint32 vpn , uint32 purpose) ; 
 extern bool8 bs_mapping() ; 

@@ -4,9 +4,9 @@ extern void page_policy_test(void);
 
 
 uint32 phy_get_test_value(uint32 *addr) {
-  static uint32 v1 = 0x12345678;
-  static uint32 v2 = 0xdeadbeef;
-  return (uint32)addr + v1 + ((uint32)addr * v2);
+  static uint32 pv1 = 0x12345678;
+  static uint32 pv2 = 0xdeadbeef;
+  return (uint32)addr + pv1 + ((uint32)addr * pv2);
 }
 
 void phy_mem_test(void){
@@ -24,7 +24,7 @@ void phy_mem_test(void){
 
     kprintf("Write Iteration [%3d] at 0x%08x\n", i, p);
     for (uint32 j=0; j<PAGE_SIZE; j=j+4) {
-      uint32 v = get_test_value(p);
+      uint32 v = phy_get_test_value(p);
       *p++ = v;
     }
 
@@ -37,7 +37,7 @@ void phy_mem_test(void){
     uint32 *p = (uint32*)(mem + (i * PAGE_SIZE));
     kprintf("Check Iteration [%3d] at 0x%08x\n", i, p);
     for (uint32 j=0; j<PAGE_SIZE; j=j+4) {
-      uint32 v = get_test_value(p);
+      uint32 v = phy_get_test_value(p);
       ASSERT(*p++ == v);
     }
 

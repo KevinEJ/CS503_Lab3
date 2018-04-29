@@ -480,7 +480,7 @@ int32	delay(int n)
 
 //EJ Util functions
 uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
-    kprintf(" Get free frame number for pid %d , vpn %d \n" , pid , vpn ) ; 
+    //kprintf(" Get free frame number for pid %d , vpn %d \n" , pid , vpn ) ; 
     
     for( uint32 i = 0 ; i < NFRAMES ; i++){
         if( ivptab[i].valid == NULL_PAGE ){
@@ -494,7 +494,7 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
                 ivptab[i].fifo_prev = NULL            ; 
                 fifo_tail = &ivptab[i]         ;  
             }    
-            kprintf(" Get free frame number [%d] with no replacement " , i ) ; 
+    //        kprintf(" Get free frame number [%d] with no replacement " , i ) ; 
             return i ; 
         }
     }
@@ -504,7 +504,7 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     uint32 ret      = fifo_head->fifo_prev->frame_number      ; 
     fifo_head->fifo_prev = fifo_head->fifo_prev->fifo_prev    ; 
     fifo_head->fifo_prev->fifo_prev->fifo_next = fifo_head    ; 
-    kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
+    //kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
    
     uint32 r_pid = ivptab[ret].pid ; 
     uint32 r_vpn = ivptab[ret].vpage_num ;
@@ -529,16 +529,22 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
 
 
 
-    if( r_pt->pt_dirty == 1 ){
+    //if( r_pt->pt_dirty == 1 ){
+    if( 1 ){
         uint32 bstore , p_offset ; 
         get_store_offset( r_pid , r_vaddr , &bstore , &p_offset ) ; 
-        write_bs( (char *)( ( ret + 1024 ) * PAGE_SIZE ) , bstore , p_offset ); 
+        kprintf("[write_bs] pid = [%d] , vpn = [%d], page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , r_pid , r_vpn , ret , bstore , p_offset) ; 
+        if( write_bs( (char *)( ( ret + 1024 ) * PAGE_SIZE ) , bstore , p_offset ) == SYSERR )
+            panic("write_bs_fail \n") ; 
     }
     
     r_pt -> pt_pres = 0 ;
     if( currpid == r_pid ) 
-        asm volatile("invlpg (%0)" ::"r" (r_vaddr) : "memory");
+        asm volatile("invlpg (%0)" ::"r" ((uint64)r_vaddr) : "memory");
     
+    if( ivptab[ r_pd-> pd_base - 1024].valid != PAGE_TAB ){
+        panic("ref_count error  \n");
+    } 
     ivptab[ r_pd->pd_base - 1024].ref_count -- ; 
     if ( ivptab[ r_pd->pd_base - 1024].ref_count == 0 ){
         hook_ptable_delete( r_pd->pd_base ) ; 
@@ -573,10 +579,11 @@ void myPageFault(){
     pd_t* curr_pd    ; 
     pt_t* curr_pt    ; 
 
-    kprintf("start Page fault handler\n") ; 
     
     mask = disable();
    
+    kprintf("start Page fault handler\n") ; 
+    
     num_fault ++ ; 
 
     currPtr = &proctab[currpid] ; 
@@ -594,26 +601,43 @@ void myPageFault(){
     v_pd_idx = v_pn >> 10 ;
     v_pt_idx = v_pn & (0x000003FF) ; 
     
-    curr_pd = (pd_t*)( (uint32)(currPtr -> PDBR) + 4 * v_pd_idx ) ; 
+    //curr_pd = (pd_t*)( (uint32)(currPtr -> PDBR) + 4 * v_pd_idx ) ; 
+    
+    curr_pd = (pd_t*)(uint32)( currPtr -> PDBR ) ;
+    for ( int i = 0 ; i < v_pd_idx ; i++){
+        curr_pd ++ ;
+    } 
+    
     if( curr_pd -> pd_pres == 0 ){ // the page table does not exist 
         create_pagetable( curr_pd ) ;  
-        curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) + 4 * v_pt_idx  ) ; 
+        //curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) + 4 * v_pt_idx  ) ; 
+        curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) ) ; 
+        for ( int i = 0 ; i < v_pt_idx ; i++){
+            curr_pt ++ ;
+        } 
     }else{
-        curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) + 4 * v_pt_idx  ) ; 
+        //curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) + 4 * v_pt_idx  ) ; 
+        curr_pt = (pt_t*)( Cal_Addr( curr_pd->pd_base - 1024) ) ; 
+        for ( int i = 0 ; i < v_pt_idx ; i++){
+            curr_pt ++ ;
+        }    
     }
     
     uint32 bstore , p_offset ; 
     get_store_offset( currpid , pf_addr , &bstore , &p_offset ) ; 
     uint32 free_frame_num = get_free_frame_number( currpid , v_pn , PAGE ) ; 
-    read_bs( (char*)( ( free_frame_num + 1024) * PAGE_SIZE ) , bstore , p_offset ) ; 
+    
+    kprintf("[read_bs] pid = [%d] , vpn = [%d], page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , currpid , v_pn , free_frame_num , bstore , p_offset) ; 
+    if( read_bs( (char*)( ( free_frame_num + 1024) * PAGE_SIZE ) , bstore , p_offset ) == SYSERR) 
+        panic("read_bs fail \n"); 
      
     
     set_pt_t( curr_pt , free_frame_num + 1024 ) ; 
     ivptab[ curr_pd->pd_base-1024 ].ref_count ++ ; 
 
+    hook_pfault( currpid , (void*)(uint32)pf_addr , v_pn , free_frame_num ) ; 
     restore(mask);
     //kprintf("entering page fault \n") ; 
-    hook_pfault( currpid , (void*)(uint32)pf_addr , v_pn , free_frame_num ) ; 
     return ;  
 }
 
@@ -651,7 +675,8 @@ bool8 bs_mapping( uint32 pid , uint32 n_pages , uint32 vpn  ){
     if( n_pages == 0 )
         return 1 ; 
     bsd_t store = allocate_bs(n_pages) ; 
-    
+    kprintf("BS_allocate store = %d \n" , store ) ; 
+
     if( bsmap[store].ifMap == 0 ){
         bsmap[store].ifMap       = 1 ;
         bsmap[store].pid         = pid ;    
@@ -688,7 +713,7 @@ void get_store_offset( uint32 pid, uint32 vaddr, uint32* store , uint32* offset 
     uint32 vpn = vaddr >> 12 ; 
     for( uint32 i = MIN_ID ; i <= MAX_ID ; i++ ){
         if( pid == bsmap[i].pid ){
-            if( vpn - bsmap[i].start_vpn< bsmap[i].num_pages ){
+            if( vpn >= bsmap[i].start_vpn && vpn - bsmap[i].start_vpn < bsmap[i].num_pages ){
                 *store = i ; 
                 *offset = vpn - bsmap[i].start_vpn ; 
                 return ; 

@@ -39,7 +39,9 @@ syscall	kill(
             if( ivptab[i].valid == PAGE ){
                 uint32 bstore , p_offset ; 
                 get_store_offset( pid , ( ivptab[i].vpage_num << 12 ) , &bstore , &p_offset ) ; 
-                write_bs( (char *)( ( i + 1024 ) * PAGE_SIZE ) , bstore , p_offset ); 
+                kprintf("[write_bs] pid=[%d] ,vpn [%d] , page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , pid , ivptab[i].vpage_num  , i , bstore , p_offset) ; 
+                if( write_bs( (char *)( ( i + 1024 ) * PAGE_SIZE ) , bstore , p_offset ) == SYSERR ) 
+                    panic("wrtie_bs fails \n"); 
             }
             if( ivptab[i].valid == PAGE_TAB){
                 hook_ptable_delete(i+1024) ; 

@@ -86,6 +86,7 @@ void hook_pswap_out(int16 procid, uint32 pagenum, uint32 framenum) {
     uint32 correct_pid = frame_md.alloc_page_proc[recf];
     uint32 correct_page = frame_md.alloc_page[recf];
     if (correct_page != pagenum || procid != correct_pid) {
+      kprintf("[EJ]  correct_pid = %d  , page = %d \n" , correct_pid , correct_page);
       kprintf("[ERR] policy is not being followed\n");
       panic("FAIL\n");
     }

@@ -42,7 +42,7 @@ typedef struct {
 #define FRAME0		1024	/* zero-th frame		*/
 
 #ifndef NFRAMES
-#define NFRAMES		100	/* number of frames		*/
+#define NFRAMES		50	/* number of frames		*/
 #endif
 
 #define MAP_SHARED 1
@@ -92,5 +92,5 @@ struct vmemblk{
 extern struct ivent ivptab[] ; 
 extern struct bsent bsmap[] ; 
 extern uint32 num_fault ; 
-
+extern sid32 get_frame_sem;
 #endif // __PAGING_H_

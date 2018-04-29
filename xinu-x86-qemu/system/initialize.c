@@ -150,6 +150,8 @@ struct ivent ivptab[NFRAMES] ;
 struct bsent bsmap[8] ; 
 uint64 check_CR3 ; 
 uint32 num_fault ; 
+sid32  get_frame_sem ; 
+sid32  pgf_frame_sem ; 
 
 struct ivent*   fifo_head  ;
 struct ivent*   fifo_tail  ;
@@ -348,6 +350,8 @@ static void initialize_paging()
     fifo_head_dummy_entry.fifo_prev = NULL ; 
     *fifo_head = fifo_head_dummy_entry ; 
     *fifo_tail = fifo_head_dummy_entry ; 
+    get_frame_sem = semcreate(1) ; 
+    pgf_frame_sem = semcreate(1) ; 
     //1. set_IVTab() ; 
     #if EJ_debug
     kprintf("reste_ivtentry \n") ; 
@@ -481,6 +485,9 @@ int32	delay(int n)
 //EJ Util functions
 uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     //kprintf(" Get free frame number for pid %d , vpn %d \n" , pid , vpn ) ; 
+    wait(get_frame_sem) ; 
+    intmask	mask;			/* Saved interrupt mask		*/
+    mask = disable();
     
     for( uint32 i = 0 ; i < NFRAMES ; i++){
         if( ivptab[i].valid == NULL_PAGE ){
@@ -495,6 +502,8 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
                 fifo_tail = &ivptab[i]         ;  
             }    
     //        kprintf(" Get free frame number [%d] with no replacement " , i ) ; 
+            restore(mask);
+            signal(get_frame_sem) ; 
             return i ; 
         }
     }
@@ -511,7 +520,7 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
 
     uint32 r_vaddr = r_vpn * PAGE_SIZE ; 
     uint32 r_p = r_vaddr >> 22 ; 
-    uint32 r_q = r_vaddr >> 12 & 0x00000cff ;  
+    uint32 r_q = r_vaddr >> 12 & 0x000003ff ;  
    
 
     //pd_t* r_pd = (pd_t*)(uint32)( proctab[r_pid].PDBR + 4 * r_p ) ; 
@@ -529,8 +538,8 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
 
 
 
-    //if( r_pt->pt_dirty == 1 ){
-    if( 1 ){
+    if( r_pt->pt_dirty == 1 ){
+    //if( 1 ){
         uint32 bstore , p_offset ; 
         get_store_offset( r_pid , r_vaddr , &bstore , &p_offset ) ; 
         kprintf("[write_bs] pid = [%d] , vpn = [%d], page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , r_pid , r_vpn , ret , bstore , p_offset) ; 
@@ -565,12 +574,14 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
         fifo_tail = &ivptab[ret]         ;  
     } 
     hook_pswap_out( old_pid , old_pagenum , ret  );
+    restore(mask);
+    signal(get_frame_sem) ; 
     return ret ; 
 }
 
 void myPageFault(){
 
-	
+    wait(pgf_frame_sem);	
     intmask	mask;			/* Saved interrupt mask		*/
     uint64 pf_addr = 0 ;
     uint32 v_pn , v_pd_idx , v_pt_idx ;
@@ -593,6 +604,8 @@ void myPageFault(){
         kprintf("faulted address is not valid Ox%x , pid = %d \n" , (uint32)pf_addr , currpid ) ; 
         dump32(pf_addr); 
         //kill(currpid) ;
+        restore(mask);
+        signal(pgf_frame_sem);
         return ; 
         // TODO kill the process ??? 
     }
@@ -638,6 +651,7 @@ void myPageFault(){
     hook_pfault( currpid , (void*)(uint32)pf_addr , v_pn , free_frame_num ) ; 
     restore(mask);
     //kprintf("entering page fault \n") ; 
+    signal(pgf_frame_sem);
     return ;  
 }
 

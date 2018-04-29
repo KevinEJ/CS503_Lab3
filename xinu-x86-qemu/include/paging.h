@@ -42,7 +42,7 @@ typedef struct {
 #define FRAME0		1024	/* zero-th frame		*/
 
 #ifndef NFRAMES
-#define NFRAMES		50	/* number of frames		*/
+#define NFRAMES		100	/* number of frames		*/
 #endif
 
 #define MAP_SHARED 1

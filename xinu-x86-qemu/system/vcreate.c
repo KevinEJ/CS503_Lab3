@@ -85,12 +85,17 @@ pid32	vcreate(
     // Map BS 
     uint32 remain_hsize = hsize ;
     uint32 t = 0 ; 
+    kprintf("Heap size = %d \n" , hsize ) ; 
     while( remain_hsize > MAX_PAGES_PER_BS ){
+        kprintf("Remained size = %d \n" , remain_hsize ) ; 
+        kprintf("Starting vpn  = %d \n" , t * MAX_PAGES_PER_BS ) ; 
         if( !bs_mapping( pid , MAX_PAGES_PER_BS , t * MAX_PAGES_PER_BS  )) 
             kprintf("bs_mapping error \n") ; 
         remain_hsize -= MAX_PAGES_PER_BS ; 
         t++ ; 
     }
+    kprintf("Remained size = %d \n" , remain_hsize ) ; 
+    kprintf("Starting vpn  = %d \n" , t * MAX_PAGES_PER_BS ) ; 
     if( !bs_mapping( pid , remain_hsize , t * MAX_PAGES_PER_BS )) 
         kprintf("bs_mapping error \n") ; 
 

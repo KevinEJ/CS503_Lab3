@@ -406,8 +406,16 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     uint32 r_q = r_vaddr >> 12 & 0x00000cff ;  
    
 
-    pd_t* r_pd = (pd_t*)(uint32)( proctab[r_pid].PDBR + 4 * r_p ) ; 
-    pt_t* r_pt = (pt_t*)( r_pd -> pd_base + 4 * r_q ) ; 
+    //pd_t* r_pd = (pd_t*)(uint32)( proctab[r_pid].PDBR + 4 * r_p ) ;
+    pd_t* r_pd = (pd_t*)(uint32)( proctab[r_pid].PDBR ) ;
+    for ( int i = 0 ; i < r_p ; i++){
+        r_pd ++ ; 
+    }
+    //pt_t* r_pt = (pt_t*)( r_pd -> pd_base + 4 * r_q ) ; 
+    pt_t* r_pt = (pt_t*)Cal_Addr( r_pd -> pd_base - 1024 ) ; 
+    for ( int i = 0 ; i < r_q ; i++){
+        r_pt ++ ; 
+    }
     
     if( r_pt->pt_dirty == 1 ){
         uint32 bstore , p_offset ; 

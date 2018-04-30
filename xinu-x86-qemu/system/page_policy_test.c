@@ -1,7 +1,7 @@
 #include <xinu.h>
 
 #define PAGESIZE  4096
-#define PAGE_ALLOCATION 300
+#define PAGE_ALLOCATION 1500
 
 /* NOTE: This does not check if paging is enabled or not, you
    should check that before starting the tests.
@@ -114,19 +114,19 @@ void page_policy_test(void) {
     }
   }
   
-  pid32 p_2 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
-                    INITPRIO, "page rep-2", 1, 2);
-  resume(p_2);
+  pid32 p_3 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
+                    INITPRIO, "page rep-3", 1, 3);
+  resume(p_3);
   while (1) {
     //if(proctab[p_1].prstate == PR_FREE && proctab[p_2].prstate==PR_FREE && proctab[p_3].prstate==PR_FREE ) {
-    if(proctab[p_2].prstate == PR_FREE) {
+    if(proctab[p_3].prstate == PR_FREE) {
       break;
     }
     else {
       sleepms(100);
     }
   }
-
+  
   kprintf("\n\nTest Passed.\n\n");
 
   return;

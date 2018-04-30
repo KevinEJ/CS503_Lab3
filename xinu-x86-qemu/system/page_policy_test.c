@@ -96,37 +96,37 @@ void page_policy_test(void) {
 
   pid32 p_1 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
                     INITPRIO, "page rep-1", 1, 1);
-  pid32 p_2 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
-                    INITPRIO, "page rep-2", 1, 2);
+  //pid32 p_2 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
+  //                  INITPRIO, "page rep-2", 1, 2);
   //pid32 p_3 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
   //                  INITPRIO, "page rep-3", 1, 3);
   resume(p_1);
-  resume(p_2);
+  //resume(p_2);
  // resume(p_3);
 
   while (1){
     //if(proctab[p_1].prstate == PR_FREE && proctab[p_2].prstate==PR_FREE && proctab[p_3].prstate==PR_FREE ) {
-    if(proctab[p_1].prstate == PR_FREE && proctab[p_2].prstate==PR_FREE ) {
-    //if(proctab[p_1].prstate == PR_FREE){ 
+    //if(proctab[p_1].prstate == PR_FREE && proctab[p_2].prstate==PR_FREE ) {
+    if(proctab[p_1].prstate == PR_FREE){ 
         break;
     }else{
       sleepms(100);
     }
   }
   
-  /*pid32 p_2 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
-                    INITPRIO, "page rep-1", 1, 2);
+  pid32 p_2 = vcreate(do_policy_test, INITSTK, PAGE_ALLOCATION,
+                    INITPRIO, "page rep-2", 1, 2);
   resume(p_2);
   while (1) {
     //if(proctab[p_1].prstate == PR_FREE && proctab[p_2].prstate==PR_FREE && proctab[p_3].prstate==PR_FREE ) {
-    if(proctab[p_1].prstate == PR_FREE) {
+    if(proctab[p_2].prstate == PR_FREE) {
       break;
     }
     else {
       sleepms(100);
     }
   }
-*/
+
   kprintf("\n\nTest Passed.\n\n");
 
   return;

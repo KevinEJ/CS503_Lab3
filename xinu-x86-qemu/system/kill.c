@@ -33,6 +33,16 @@ syscall	kill(
 
   // Lab3 TODO. Free frames as a process gets killed.
   // EJ
+    //pd_t* curPd = (pd_t*)(uint32)( prptr->PDBR ) ;
+    //pt_t* curPt = (pt_t*)Cal_Addr( curPd->pd_base - 1024 ) ;
+    /*for( i = 0 ; i < 1024 ; i++){
+        if( curPd->pd_pres == 1){
+            pt_t* curPt = (pt_t*)Cal_Addr( curPd->pd_base - 1024 ) ;
+            clear_pt(curPt) ;
+        }
+        clear_pd(curPd) ; 
+        curPd ++ ; 
+    }*/
     for( i = 0 ; i < NFRAMES ; i++ ){
         if(ivptab[i].pid == pid){
             //reset_ivent()
@@ -42,6 +52,11 @@ syscall	kill(
                 kprintf("[write_bs] pid=[%d] ,vpn [%d] , page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , pid , ivptab[i].vpage_num  , i , bstore , p_offset) ; 
                 if( write_bs( (char *)( ( i + 1024 ) * PAGE_SIZE ) , bstore , p_offset ) == SYSERR ) 
                     panic("wrtie_bs fails \n"); 
+                ivptab[i].fifo_prev->fifo_next = ivptab[i].fifo_next ; 
+                ivptab[i].fifo_next->fifo_prev = ivptab[i].fifo_prev ; 
+                ivptab[i].fifo_next    = NULL ; 
+                ivptab[i].fifo_prev    = NULL ; 
+                //hook_pswap_out( pid , ivptab[i].vpage_num , i );
             }
             if( ivptab[i].valid == PAGE_TAB){
                 hook_ptable_delete(i+1024) ; 
@@ -51,11 +66,7 @@ syscall	kill(
             ivptab[i].frame_number = i ; 
             ivptab[i].pid          = 0 ;  
             ivptab[i].vpage_num    = 0 ; 
-            ivptab[i].ref_count    = 0 ; 
-            if( ivptab[i].fifo_prev )
-                ivptab[i].fifo_prev->fifo_next = ivptab[i].fifo_next ; 
-            ivptab[i].fifo_next    = NULL ; 
-            ivptab[i].fifo_prev    = NULL ; 
+            ivptab[i].ref_count    = 0 ;
         } 
     }
 

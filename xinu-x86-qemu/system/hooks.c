@@ -4,7 +4,7 @@
 
 #define HOOK_LOG_ON
 
-#define POLICY_TESTING 1
+#define POLICY_TESTING 0
 
 /*
  * Note that this file will be replaced in grading. So you may change them to

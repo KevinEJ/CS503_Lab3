@@ -752,6 +752,8 @@ extern uint32 get_free_frame_number(uint32 pid, uint32 vpn , uint32 purpose) ;
 extern bool8 bs_mapping() ; 
 extern void myPageFault();
 extern void create_pagetable(pd_t* pd);
+extern void clear_pd(pd_t* pd );
+extern void clear_pt(pt_t* pt );
 
 void reset_ivtentry();
 void set_ivtentry_pd_pt( uint32 i , uint32 pid, uint32 type);

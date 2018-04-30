@@ -156,6 +156,7 @@ sid32  pgf_frame_sem ;
 struct ivent*   fifo_head  ;
 struct ivent*   fifo_tail  ;
 struct ivent    fifo_head_dummy_entry  ;
+struct ivent    fifo_tail_dummy_entry  ;
 
 /* Active system status */
 
@@ -346,10 +347,16 @@ static void initialize_paging()
 #if EJ_LAB3
     /* LAB3 TODO */
     num_fault = 0  ; 
+    fifo_head = &fifo_head_dummy_entry ; 
+    fifo_tail = &fifo_tail_dummy_entry ; 
+    
     fifo_head_dummy_entry.fifo_next = NULL ; 
-    fifo_head_dummy_entry.fifo_prev = NULL ; 
-    *fifo_head = fifo_head_dummy_entry ; 
-    *fifo_tail = fifo_head_dummy_entry ; 
+    fifo_head_dummy_entry.fifo_prev = fifo_tail ; 
+    fifo_head_dummy_entry.frame_number = (uint32) -1 ; 
+    fifo_tail_dummy_entry.fifo_next = fifo_head ; 
+    fifo_tail_dummy_entry.fifo_prev = NULL ; 
+    fifo_tail_dummy_entry.frame_number = (uint32) -1 ; 
+    
     get_frame_sem = semcreate(1) ; 
     pgf_frame_sem = semcreate(1) ; 
     //1. set_IVTab() ; 
@@ -380,6 +387,11 @@ static void initialize_paging()
     nullptr -> PDBR = Cal_Addr( 0 ) ; 
     //4. assign Null process's page directories to global page table
     pd_t* null_pd = (pd_t*)Cal_Addr( 0 ) ;
+    for( int i = 0 ; i < 1024 ; i ++){
+        null_pd -> pd_pres = 0 ; 
+        null_pd ++ ; 
+    }
+    null_pd = (pd_t*)Cal_Addr( 0 ) ;
     set_pd_t( null_pd , 1 + 1024 ) ;
     null_pd ++ ; 
     set_pd_t( null_pd , 2 + 1024 ) ;
@@ -484,25 +496,32 @@ int32	delay(int n)
 
 //EJ Util functions
 uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
-    //kprintf(" Get free frame number for pid %d , vpn %d \n" , pid , vpn ) ; 
     wait(get_frame_sem) ; 
     intmask	mask;			/* Saved interrupt mask		*/
     mask = disable();
     
+    /*struct ivent* temp = fifo_head ; 
+    kprintf("Dump fifo\n") ; 
+    while( temp != NULL){
+        kprintf("%d -> " , temp->frame_number) ; 
+        temp = temp->fifo_prev ; 
+    } */
+
     for( uint32 i = 0 ; i < NFRAMES ; i++){
         if( ivptab[i].valid == NULL_PAGE ){
             ivptab[i].valid = purpose ; 
             ivptab[i].pid = pid ;
             if( purpose == PAGE ){
                 ivptab[i].vpage_num = vpn ; 
-                
-                fifo_tail -> fifo_prev = &ivptab[i] ; 
-                ivptab[i].fifo_next = fifo_tail ; 
-                ivptab[i].fifo_prev = NULL            ; 
-                fifo_tail = &ivptab[i]         ;  
+               
+                ivptab[i].fifo_prev = fifo_tail ; 
+                ivptab[i].fifo_next = fifo_tail->fifo_next; 
+                ivptab[i].fifo_next->fifo_prev = &ivptab[i]; 
+                fifo_tail->fifo_next = &ivptab[i] ; 
             }    
     //        kprintf(" Get free frame number [%d] with no replacement " , i ) ; 
             restore(mask);
+            kprintf(" Get free frame number for pid %d , vpn %d , purpose %d , ret %d \n" , pid , vpn , purpose , i  ) ; 
             signal(get_frame_sem) ; 
             return i ; 
         }
@@ -510,9 +529,18 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     
     
     //kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
+    if( fifo_head->fifo_prev == NULL){
+        panic("fifo error\n") ; 
+    }
     uint32 ret      = fifo_head->fifo_prev->frame_number      ; 
+    if( ivptab[ret].valid != PAGE){
+        panic("replaced frame should be PAGE\n") ; 
+    }
+    
     fifo_head->fifo_prev = fifo_head->fifo_prev->fifo_prev    ; 
-    fifo_head->fifo_prev->fifo_prev->fifo_next = fifo_head    ; 
+    fifo_head->fifo_prev->fifo_next = fifo_head    ; 
+    
+    
     //kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
    
     uint32 r_pid = ivptab[ret].pid ; 
@@ -564,13 +592,14 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     if( purpose == PAGE ){
         ivptab[ret].vpage_num = vpn ; 
     
-        fifo_tail -> fifo_prev = &ivptab[ret] ; 
-        ivptab[ret].fifo_next = fifo_tail ; 
-        ivptab[ret].fifo_prev = NULL      ; 
-        fifo_tail = &ivptab[ret]         ;  
+        ivptab[ret].fifo_prev = fifo_tail ; 
+        ivptab[ret].fifo_next = fifo_tail->fifo_next; 
+        ivptab[ret].fifo_next->fifo_prev = &ivptab[ret]; 
+        fifo_tail->fifo_next = &ivptab[ret] ; 
     } 
     hook_pswap_out( old_pid , old_pagenum , ret  );
     restore(mask);
+    kprintf(" Get free frame number for pid %d , vpn %d , purpose %d , ret %d \n" , pid , vpn , purpose , ret  ) ; 
     signal(get_frame_sem) ; 
     return ret ; 
 }
@@ -733,4 +762,30 @@ void get_store_offset( uint32 pid, uint32 vaddr, uint32* store , uint32* offset 
     //kprintf("BSmap Finding error \n" ) ; 
 }
 
+void clear_pd(pd_t* pd){
+       pd->pd_pres   = 0  ;       //     /* page table present?      
+       pd->pd_write  = 0  ;       //     /* page is writable?        
+       pd->pd_user   = 0  ;       //     /* is use level protection? 
+       pd->pd_pwt    = 0  ;       //     /* write through cachine for pt? 
+       pd->pd_pcd    = 0  ;       //     /* cache disable for this pt?   
+       pd->pd_acc    = 0  ;       //     /* page table was accessed? 
+       pd->pd_mbz    = 0  ;       // /* must be zero         
+       pd->pd_fmb    = 0  ;       // /* four MB pages?       
+       pd->pd_global = 0  ;               // /* global (ignored)     
+       pd->pd_avail  = 0  ;               // /* for programmer's use     
+       pd->pd_base   = 0  ; 
+}
+void clear_pt(pt_t* pt){
+        pt->pt_pres    = 0  ;       //     /* page table present?      
+        pt->pt_write   = 0  ;       //     /* page is writable?        
+        pt->pt_user    = 0  ;       //     /* is use level protection? 
+        pt->pt_pwt     = 0  ;       //     /* write through cachine for pt? 
+        pt->pt_pcd     = 0  ;       //     /* cache disable for this pt?   
+        pt->pt_acc     = 0  ;       //     /* page table was accessed? 
+        pt->pt_dirty   = 0  ;       // /* must be zero         
+        pt->pt_mbz     = 0  ;       // /* four MB pages?       
+        pt->pt_global  = 0  ;               // /* global (ignored)     
+        pt->pt_avail   = 0  ;               // /* for programmer's use     
+        pt->pt_base    = 0  ; 
+}
 

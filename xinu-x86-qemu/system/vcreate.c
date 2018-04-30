@@ -52,6 +52,12 @@ pid32	vcreate(
     uint32 free_frame_num = get_free_frame_number( pid , 0 , PAGE_DIR ) ; 
     prptr -> PDBR = Cal_Addr( free_frame_num ) ;
     pd_t* cur_pd = (pd_t*)( Cal_Addr( free_frame_num ) ) ;
+    for( int i = 0 ; i < 1024 ; i ++){
+        cur_pd -> pd_pres = 0 ; 
+        cur_pd ++ ; 
+        //clear_pd(cur_pd++) ; 
+    }
+    cur_pd = (pd_t*)( Cal_Addr( free_frame_num ) ) ;
     // set Global, Device page directories
     set_pd_t( cur_pd    , 1 + 1024 ) ;
     cur_pd ++ ; 

@@ -154,6 +154,7 @@ sid32  get_frame_sem ;
 sid32  pgf_frame_sem ; 
 
 struct ivent*   fifo_head  ;
+struct ivent*   fifo_hand  ;
 struct ivent*   fifo_tail  ;
 struct ivent    fifo_head_dummy_entry  ;
 struct ivent    fifo_tail_dummy_entry  ;
@@ -348,6 +349,7 @@ static void initialize_paging()
     /* LAB3 TODO */
     num_fault = 0  ; 
     fifo_head = &fifo_head_dummy_entry ; 
+    fifo_hand = fifo_head ; 
     fifo_tail = &fifo_tail_dummy_entry ; 
     
     fifo_head_dummy_entry.fifo_next = NULL ; 
@@ -532,14 +534,71 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
     if( fifo_head->fifo_prev == NULL){
         panic("fifo error\n") ; 
     }
-    uint32 ret      = fifo_head->fifo_prev->frame_number      ; 
-    if( ivptab[ret].valid != PAGE){
-        panic("replaced frame should be PAGE\n") ; 
+    //TODO if FIFO
+    uint32 ret = (uint32) -1  ; 
+    if(currpolicy == FIFO){ 
+        ret      = fifo_head->fifo_prev->frame_number      ; 
+        if( ivptab[ret].valid != PAGE){
+            panic("replaced frame should be PAGE\n") ; 
+        }
+        ivptab[ret].fifo_prev->fifo_next = ivptab[ret].fifo_next ; 
+        ivptab[ret].fifo_next->fifo_prev = ivptab[ret].fifo_prev ; 
+        ivptab[ret].fifo_next    = NULL ; 
+        ivptab[ret].fifo_prev    = NULL ; 
+        
+        //fifo_head->fifo_prev = fifo_head->fifo_prev->fifo_prev    ; 
+        //fifo_head->fifo_prev->fifo_next = fifo_head    ; 
+    }else if( currpolicy == GCA ){  // else if GCA
+        
+        while( 1 ){
+            //check validation
+            if( fifo_hand == fifo_head ){  // head means it is the first access ; 
+                fifo_hand = fifo_head -> fifo_prev ; 
+            }else if( fifo_hand == fifo_tail){ // tail means error ; 
+                panic("error, should never happen \n ") ; 
+            }
+            
+            uint32 gca_pid = fifo_hand->pid ;
+            uint32 gca_vpn = fifo_hand->vpage_num ;
+            uint32 gca_vaddr = gca_vpn * PAGE_SIZE ; 
+            uint32 gca_p = gca_vaddr >> 22 ; 
+            uint32 gca_q = gca_vaddr >> 12 & 0x000003ff ;  
+   
+            pd_t* gca_pd = (pd_t*)(uint32)( proctab[gca_pid].PDBR ) ;
+            for ( int i = 0 ; i < gca_p ; i++){
+                gca_pd ++ ; 
+            }
+            pt_t* gca_pt = (pt_t*)Cal_Addr( gca_pd -> pd_base - 1024 ) ; 
+            for ( int i = 0 ; i < gca_q ; i++){
+                gca_pt ++ ; 
+            }
+            
+            if(gca_pt->pt_acc == 0 && gca_pt->pt_dirty == 0  ){         // if (0,0)
+                ret = fifo_hand -> frame_number ; 
+                fifo_hand = fifo_hand -> fifo_prev ;  //  hand ++ ; 
+                break ; 
+            }else if( gca_pt->pt_acc == 1 && gca_pt->pt_dirty == 0  ){  // if (1,0)
+                gca_pt->pt_acc = 0  ;                // set (0,0)
+                fifo_hand = fifo_hand -> fifo_prev ;  //  hand ++ ; 
+            }else if( gca_pt->pt_acc == 1 && gca_pt->pt_dirty == 1  ){  // if (1,1)
+                gca_pt->pt_dirty = 0  ;              // set (1,0)
+                fifo_hand = fifo_hand -> fifo_prev ;  //  hand ++ ; 
+            }else{
+                panic("error \n" ) ; 
+            }
+            if( fifo_hand == fifo_tail ){
+                fifo_hand = fifo_head -> fifo_prev ; 
+            }
+        }
+        
+        ivptab[ret].fifo_prev->fifo_next = ivptab[ret].fifo_next ; 
+        ivptab[ret].fifo_next->fifo_prev = ivptab[ret].fifo_prev ; 
+        ivptab[ret].fifo_next    = NULL ; 
+        ivptab[ret].fifo_prev    = NULL ; 
+        
+    }else{
+        panic("policy error \n") ; 
     }
-    
-    fifo_head->fifo_prev = fifo_head->fifo_prev->fifo_prev    ; 
-    fifo_head->fifo_prev->fifo_next = fifo_head    ; 
-    
     
     //kprintf(" Get free frame number [%d] with replacement " , ret ) ; 
    
@@ -562,8 +621,8 @@ uint32 get_free_frame_number( uint32 pid , uint32 vpn , uint32 purpose){
         r_pt ++ ; 
     }
 
-    if( r_pt->pt_dirty == 1 ){
-    //if( 1 ){
+    //if( r_pt->pt_dirty == 1 ){
+    if( 1 ){
         uint32 bstore , p_offset ; 
         get_store_offset( r_pid , r_vaddr , &bstore , &p_offset ) ; 
         kprintf("[write_bs] pid = [%d] , vpn = [%d], page_num = [%d] , bstore = [%d] , p_offset = [%d] \n" , r_pid , r_vpn , ret , bstore , p_offset) ; 

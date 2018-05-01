@@ -74,6 +74,7 @@ struct ivent{
 };
 
 extern struct ivent*   fifo_head  ;
+extern struct ivent*   fifo_hand  ;
 extern struct ivent*   fifo_tail  ;
 extern struct ivent   fifo_head_dummy_entry  ;
 extern struct ivent   fifo_tail_dummy_entry  ;

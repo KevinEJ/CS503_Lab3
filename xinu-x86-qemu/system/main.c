@@ -54,7 +54,8 @@ process	main(void)
   phy_mem_test();
   
   kprintf("srpolicy \n") ; 
-  srpolicy(FIFO);
+  //srpolicy(FIFO);
+  srpolicy(GCA);
 
   /* Start the network */
   /* DO NOT REMOVE OR COMMENT BELOW */
